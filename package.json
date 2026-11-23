@@ -1,5 +1,5 @@
 {
-  "name": "template-lab",
+  "name": "rewired",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "engines": {
@@ -12,10 +12,10 @@
     ]
   },
   "scripts": {
-    "dev": "pnpm --filter @template-lab/web dev",
-    "build": "pnpm --filter @template-lab/web build",
-    "preview": "pnpm --filter @template-lab/web preview",
-    "typecheck": "pnpm --filter @template-lab/web exec tsc -b",
-    "test": "pnpm --filter @template-lab/web test"
+    "dev": "pnpm --filter @rewired/web dev",
+    "build": "pnpm --filter @rewired/web build",
+    "preview": "pnpm --filter @rewired/web preview",
+    "typecheck": "pnpm --filter @rewired/web exec tsc -b",
+    "test": "pnpm --filter @rewired/web test"
   }
 }

@@ -2,5 +2,5 @@
   "applicationRoot": "web",
   "outputPath": "web/dist",
   "buildCommand": "pnpm build",
-  "appId": "template-lab"
+  "appId": "rewired"
 }

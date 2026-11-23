@@ -1,6 +1,6 @@
 {
-  "name": "template-lab",
-  "short_name": "template-lab",
+  "name": "rewired",
+  "short_name": "rewired",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

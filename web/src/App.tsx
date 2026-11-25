@@ -141,13 +141,13 @@ function Home() {
 
     // Timer reached 0: log victory and raise celebration toast
     setTimerRunning(false);
-    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const now = new Date().toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
     setHistory((prev) => [
       {
         type: activeActivity.name,
         icon: activeActivity.icon,
-        timestamp: `Today, ${now}`,
+        timestamp: now,
         notes: customNote.trim() || `Conquered a craving using ${activeActivity.name}!`
       },
       ...prev

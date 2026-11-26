@@ -147,7 +147,7 @@ function Home({
     }
 
     setTimerRunning(false);
-    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const now = new Date().toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
     setHistory((prev) => [
       {

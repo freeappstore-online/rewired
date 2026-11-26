@@ -1,17 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { initApp } from "@freeappstore/sdk";
-import { ConfirmDialog, Modal, type NavItem, PageHeader, SearchInput, Shell, Tabs, useToast, } from "@freeappstore/sdk/ui";
+import { ConfirmDialog, Modal, PageHeader, ProfilePage, SearchInput, Shell, Tabs, useToast, } from "@freeappstore/sdk/ui";
 
 // "rewired" is replaced by the CLI scaffold or deployment flow with this app's id.
 export const fas = initApp({ appId: "rewired" });
-
-// The app's screens. Shell renders them as the navbar: a <nav> in its topbar
-// with the current screen highlighted, collapsing to a menu on phones.
-// Add one entry per primary screen; `title` becomes the browser tab title.
-const NAV: NavItem[] = [
-  { label: "Home", href: "/", title: "rewired" },
-  { label: "About", href: "/about", title: "About — rewired" },
-];
 
 interface ActivityItem {
   id: string;
@@ -41,6 +33,15 @@ interface VictoryLog {
 export default function App() {
   const [path, setPath] = useState(() => window.location.pathname);
 
+  // Lift targetHabit to App so both Home and ProfilePage share live updates
+  const [targetHabit, setTargetHabit] = useState<string>(() => {
+    return localStorage.getItem("rewired_target_habit") || "";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("rewired_target_habit", targetHabit);
+  }, [targetHabit]);
+
   // Keep the screen in step with the browser's back and forward buttons.
   useEffect(() => {
     const sync = () => setPath(window.location.pathname);
@@ -56,23 +57,35 @@ export default function App() {
   };
 
   return (
-    <Shell app={fas} appName={"ReWired"} nav={NAV} onNavigate={navigate}>
-      <div className="mx-auto w-full max-w-3xl p-4 sm:p-8">
-        {path === "/about" ? <About /> : <Home />}
+    <Shell app={fas} appName={"ReWired"} nav={[]} profileHref="/profile" showThemeToggle={false} onNavigate={navigate}>
+      <div className="mx-auto w-full max-w-6xl p-4 sm:p-8">
+        {path === "/profile" ? (
+          <ProfileScreen
+            targetHabit={targetHabit}
+            onSaveHabit={setTargetHabit}
+            onBack={() => navigate("/")}
+          />
+        ) : (
+          <Home
+            targetHabit={targetHabit}
+            onSaveHabit={setTargetHabit}
+          />
+        )}
       </div>      
     </Shell>
   );
 }
 
-function Home() {
+function Home({
+  targetHabit,
+  onSaveHabit,
+}: {
+  targetHabit: string;
+  onSaveHabit: (habit: string) => void;
+}) {
   const toast = useToast();
-
-  // Target habit state (persisted in localStorage)
-  const [targetHabit, setTargetHabit] = useState<string>(() => {
-    return localStorage.getItem("rewired_target_habit") || "";
-  });
-  const [isEditingHabit, setIsEditingHabit] = useState(false);
-  const [habitInputValue, setHabitInputValue] = useState(targetHabit);
+  const habitInputId = useId();
+  const [habitInputValue, setHabitInputValue] = useState("");
 
   // Custom activities state (persisted in localStorage)
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(() => {
@@ -114,16 +127,10 @@ function Home() {
 
   const allActivities = [...DEFAULT_ACTIVITIES, ...customActivities];
 
-  // Sync target habit to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("rewired_target_habit", targetHabit);
-  }, [targetHabit]);
-
   useEffect(() => {
     localStorage.setItem("rewired_custom_activities", JSON.stringify(customActivities));
   }, [customActivities]);
 
-  // Sync victory history to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("rewired_victory_history", JSON.stringify(history));
   }, [history]);
@@ -139,7 +146,6 @@ function Home() {
       return () => clearInterval(interval);
     }
 
-    // Timer reached 0: log victory and raise celebration toast
     setTimerRunning(false);
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -148,16 +154,26 @@ function Home() {
         type: activeActivity.name,
         icon: activeActivity.icon,
         timestamp: `Today, ${now}`,
-        notes: customNote.trim() || `Conquered a craving using ${activeActivity.name}!`
+        notes: customNote.trim() || `Conquered a craving using ${activeActivity.name}!`,
       },
-      ...prev
+      ...prev,
     ]);
     toast.show(`Urge defeated! +1 Win (${activeActivity.name})`, { variant: "success" });
     setActiveActivity(null);
     setCustomNote("");
   }, [timerRunning, secondsLeft, activeActivity, customNote, confirmForfeitOpen, toast]);
 
+  const handleSaveInitialHabit = (e: React.BaseSyntheticEvent) => {
+    e.preventDefault();
+    const cleaned = habitInputValue.trim();
+    if (!cleaned) return;
+    onSaveHabit(cleaned);
+    setHabitInputValue("");
+    toast.show(`Target habit set: "${cleaned}"`, { variant: "success" });
+  };
+
   const handleTriggerPanic = () => {
+    if (allActivities.length === 0) return;
     setIsSpinning(true);
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * allActivities.length);
@@ -168,14 +184,6 @@ function Home() {
       setIsSpinning(false);
       setTimerRunning(true);
     }, 800);
-  };
-
-  const handleSaveHabit = (e: React.BaseSyntheticEvent) => {
-    e.preventDefault();
-    const cleaned = habitInputValue.trim();
-    setTargetHabit(cleaned);
-    setIsEditingHabit(false);
-    toast.show(cleaned ? "Target habit updated!" : "Target habit cleared.", { variant: "success" });
   };
 
   const handleAddCustomActivity = (newItem: ActivityItem) => {
@@ -204,7 +212,6 @@ function Home() {
     toast.show("Victory log removed.", { variant: "info" });
   };
 
-  // Filtered victory history for SearchInput
   const filteredHistory = history
     .map((log, originalIndex) => ({ log, originalIndex }))
     .filter(({ log }) => {
@@ -218,67 +225,46 @@ function Home() {
 
   return (
     <>
-      <PageHeader title="ReWired: Urge Control Hub" description="Interrupt compulsive habits with quick, randomized healthy detours." />
-
-      {/* Target Habit Configuration Block */}
-      <div className="p-5 border border-mint/30 rounded-lg bg-mint-soft/45 text-ink mb-6 mt-4 shadow-sm transition-colors">
-        {isEditingHabit ? (
-          <form onSubmit={handleSaveHabit} className="flex flex-col sm:flex-row gap-3 sm:items-end">
+      {/* Shows ONLY when user hasn't entered a habit yet; disappears automatically once saved! */}
+      {!targetHabit && (
+        <div className="p-4 sm:p-5 border border-mint/30 rounded-lg bg-mint-soft/45 text-ink mb-5 shadow-sm">
+          <form onSubmit={handleSaveInitialHabit} className="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="flex-1">
-              <label className="block text-xs font-bold text-mint-deep uppercase mb-1.5">
+              <label
+                htmlFor={habitInputId}
+                className="block text-xs font-bold text-mint-deep uppercase mb-1.5"
+              >
                 What bad habit are you fighting?
               </label>
               <input
+                id={habitInputId}
                 type="text"
                 value={habitInputValue}
                 onChange={(e) => setHabitInputValue(e.target.value)}
-                placeholder="e.g., Smoking, Drinking, Late-Night Scrolling..."
-                className="w-full p-2.5 border border-mint/40 rounded-sm bg-paper text-ink text-sm placeholder-muted focus:outline-hidden focus:ring-2 focus:ring-mint"
-                autoFocus
+                placeholder="e.g., Smoking, Late-Night Scrolling, Nail Biting..."
+                className="min-h-11 w-full p-2.5 border border-mint/40 rounded-sm bg-paper text-ink text-sm placeholder-muted focus:outline-hidden focus:ring-2 focus:ring-mint"
               />
             </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2.5 bg-mint hover:bg-mint-deep text-paper font-bold rounded-sm text-sm cursor-pointer transition-colors"
-              >
-                Save Target
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingHabit(false)}
-                className="px-3 py-2.5 border border-line bg-paper text-muted hover:text-ink font-semibold rounded-sm text-sm cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div>
-              <span className="text-xs uppercase font-extrabold text-mint-deep bg-mint-soft px-2 py-0.5 rounded-sm border border-mint/20">
-                Active Focus Goal
-              </span>
-              <h2 className="text-lg font-bold text-ink mt-1.5">
-                Habit to break:{" "}
-                {targetHabit ? (
-                  <span className="italic font-normal">"{targetHabit}"</span>
-                ) : (
-                  <span className="text-muted font-normal italic text-base">Not set yet</span>
-                )}
-              </h2>
-            </div>
             <button
-              onClick={() => {
-                setHabitInputValue(targetHabit);
-                setIsEditingHabit(true);
-              }}
-              className="px-4 py-2 bg-mint hover:bg-mint-deep text-paper font-bold text-sm rounded-sm shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-center"
+              type="submit"
+              className="min-h-11 px-4 py-2.5 bg-mint hover:bg-mint-deep text-white font-bold rounded-sm text-sm cursor-pointer transition-colors shrink-0"
             >
-              {targetHabit ? "Modify Target" : "+ Set Target Habit"}
+              Save Habit
             </button>
-          </div>
-        )}
+          </form>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <PageHeader title="Urge Control Hub" />
+
+        {/* Compact, non-intrusive habit indicator that opens Profile */}
+        <button
+          type="button"
+          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-mint-soft/70 hover:bg-mint-soft text-mint-deep border border-mint/25 transition-colors cursor-pointer truncate max-w-full"
+        >
+          {targetHabit ? `🎯 Fighting: ${targetHabit}` : "+ Set habit in Profile"}
+        </button>
       </div>
 
       {/* Primary 2-Column Dashboard Split */}
@@ -507,6 +493,84 @@ function Home() {
         onCancel={() => setDeleteIndex(null)}
       />
     </>
+  );
+};
+
+function ProfileScreen({
+  targetHabit,
+  onSaveHabit,
+  onBack,
+}: {
+  targetHabit: string;
+  onSaveHabit: (habit: string) => void;
+  onBack: () => void;
+}) {
+  const toast = useToast();
+  const habitInputId = useId();
+  const [habitInput, setHabitInput] = useState(targetHabit);
+
+  const handleSubmit = (e: React.BaseSyntheticEvent) => {
+    e.preventDefault();
+    const cleaned = habitInput.trim();
+    onSaveHabit(cleaned);
+    toast.show(cleaned ? "Target habit saved!" : "Target habit cleared.", { variant: "success" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="min-h-10 px-3 py-1.5 rounded-sm border border-line bg-paper text-ink hover:bg-panel text-sm font-semibold cursor-pointer transition-colors"
+        >
+          ← Back to Detour Hub
+        </button>
+      </div>
+
+      {/* Target Habit Settings inside Profile */}
+      <section className="p-5 border border-mint/30 rounded-lg bg-mint-soft/35 text-ink mt-6">
+         <h2 className="text-lg font-bold mb-1">Habit Focus Goal</h2>
+         <p className="text-xs text-muted mb-4">
+           Set the specific habit you want to interrupt. Moving this here keeps your main screen clean on mobile.
+         </p>
+
+         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 sm:items-end">
+           <div className="flex-1">
+             <label
+               htmlFor={habitInputId}
+               className="block text-xs font-bold text-mint-deep uppercase mb-1.5"
+             >
+               Bad Habit to Break
+             </label>
+             <input
+               id={habitInputId}
+               type="text"
+               value={habitInput}
+               onChange={(e) => setHabitInput(e.target.value)}
+               placeholder="e.g., Smoking, Late-Night Scrolling, Nail Biting..."
+               className="min-h-11 w-full p-2.5 border border-mint/40 rounded-sm bg-paper text-ink text-sm placeholder-muted focus:outline-hidden focus:ring-2 focus:ring-mint"
+             />
+           </div>
+           <button
+              type="submit"
+              className="min-h-11 px-4 py-2.5 bg-mint hover:bg-mint-deep text-white font-bold rounded-sm text-sm cursor-pointer transition-colors shrink-0"
+           >
+              Save Habit
+           </button>
+        </form>
+      </section>
+
+      <ProfilePage app={fas}>     
+        {/* About ReWired inside Profile */}
+        <section className="p-5 border border-line rounded-lg bg-paper text-ink mt-4">
+          <h2 className="text-lg font-bold mb-1">About ReWired</h2>
+          <p className="text-sm text-muted leading-relaxed">
+            ReWired is a single-user habit detour companion built for FreeAppStore. Whenever an urge hits, tap <strong>Break Craving Now</strong> to interrupt the loop with a quick physical or mental reset, then log your win.
+          </p>
+        </section>
+      </ProfilePage>
+    </div>
   );
 }
 

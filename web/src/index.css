@@ -63,14 +63,14 @@
   --success: #16a34a;
   --warning: #d97706;
   --danger: #dc2626;
-  --accent: #2563eb;
+  --accent: #059669;
   --paper-deep: #f3f4f6;
   --ink-strong: var(--ink);
   --panel-glass: rgba(255, 255, 255, 0.72);
   --popover: var(--paper);
   --scrim: rgba(0, 0, 0, 0.5);
-  --accent-soft: #dbeafe;
-  --accent-deep: #1e40af;
+  --accent-soft: #d1fae5;
+  --accent-deep: #065f46;
   --accent-hover: var(--accent-deep);
   --sky: #0284c7;
   --sky-soft: #e0f2fe;
@@ -105,9 +105,9 @@
   --danger: #ef4444;
   --paper-deep: #0a0a0a;
   --panel-glass: rgba(26, 26, 26, 0.8);
-  --accent: #60a5fa;
-  --accent-soft: #172554;
-  --accent-deep: #bfdbfe;
+  --accent: #34d399;
+  --accent-soft: #022c22;
+  --accent-deep: #a7f3d0;
   --sky: #38bdf8;
   --sky-soft: #082f49;
   --sky-deep: #bae6fd;
@@ -136,4 +136,12 @@ html { overflow-wrap: anywhere; }
 body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 img, video, canvas { max-width: 100%; }
 
+}
+
+@layer components {
+  /* Hide topbar text-size button so only the Profile icon shows on mobile */
+  header button[aria-label^="Text:"],
+  [data-fas-header-actions] button[aria-label^="Text:"] {
+    display: none !important;
+  }
 }
